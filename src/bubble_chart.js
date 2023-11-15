@@ -6,10 +6,14 @@
  * https://bost.ocks.org/mike/chart/
  *
  */
+var fillColor;
+
 function bubbleChart() {
   // Constants for sizing
-  var width = 940;
+  var width = 1240;
   var height = 600;
+  var parseDate = d3.timeParse("%Y-%m-%d %H:%M:%S.%L");
+
 
   // tooltip for mouseover functionality
   var tooltip = floatingTooltip('gates_tooltip', 240);
@@ -21,14 +25,26 @@ function bubbleChart() {
   var yearCenters = {
     2008: { x: width / 3, y: height / 2 },
     2009: { x: width / 2, y: height / 2 },
-    2010: { x: 2 * width / 3, y: height / 2 }
+    2023: { x: 2 * width / 3, y: height / 2 }
+  };
+
+  var areaCenters = {
+    BRC: { x: width / 3, y: height / 2 },
+    PGR: { x: width / 2, y: height / 2 },
+    ACHESON: { x: 2 * width / 3, y: height / 2 }
   };
 
   // X locations of the year titles.
   var yearsTitleX = {
     2008: 160,
     2009: width / 2,
-    2010: width - 160
+    2023: width - 160
+  };
+
+  var areasTitleX = {
+    BRC:160,
+    PGR: width / 2,
+    ACHESON: width - 160
   };
 
   // @v4 strength to apply to the position forces
@@ -71,11 +87,7 @@ function bubbleChart() {
   //  which we don't want as there aren't any nodes yet.
   simulation.stop();
 
-  // Nice looking colors - no reason to buck the trend
-  // @v4 scales now have a flattened naming scheme
-  var fillColor = d3.scaleOrdinal()
-    .domain(['low', 'medium', 'high'])
-    .range(['#d84b2a', '#beccae', '#7aa25c']);
+
 
 
   /*
@@ -93,29 +105,34 @@ function bubbleChart() {
   function createNodes(rawData) {
     // Use the max total_amount in the data as the max in the scale's domain
     // note we have to ensure the total_amount is a number.
-    var maxAmount = d3.max(rawData, function (d) { return +d.total_amount; });
+
+    var maxAmount = d3.max(rawData, function (d) { return +d.LI_AMT; });
 
     // Sizes bubbles based on area.
     // @v4: new flattened scale names.
     var radiusScale = d3.scalePow()
       .exponent(0.5)
-      .range([2, 85])
+      .range([2, 45])
       .domain([0, maxAmount]);
 
     // Use map() to convert raw data into node data.
     // Checkout http://learnjsdata.com/ for more on
     // working with data.
     var myNodes = rawData.map(function (d) {
+      var start_year = parseDate(d.ACCT_PER_DATE);
+      start_year = start_year.getFullYear();
+      var amount = +d.LI_AMT > 0 ? +d.LI_AMT : -d.LI_AMT; 
       return {
         id: d.id,
-        radius: radiusScale(+d.total_amount),
-        value: +d.total_amount,
-        name: d.grant_title,
-        org: d.organization,
-        group: d.group,
-        year: d.start_year,
+        radius: radiusScale(amount),
+        value: amount,
+        name: d.AREA,
+        org: d.FIELD,
+        group: d.ACCOUNT_DESCRIPTION,
+        year: start_year,
         x: Math.random() * 900,
-        y: Math.random() * 800
+        y: Math.random() * 800,
+        revenue: +d.LI_AMT < 0
       };
     });
 
@@ -139,6 +156,12 @@ function bubbleChart() {
    * a d3 loading function like d3.csv.
    */
   var chart = function chart(selector, rawData) {
+    // Nice looking colors - no reason to buck the trend
+    // @v4 scales now have a flattened naming scheme
+    fillColor = d3.scaleOrdinal()
+    .domain([...new Set(rawData.map(d => d.ACCOUNT_DESCRIPTION))])
+    .range(['#d62728', '#ff7f0e', '#2ca02c', '#9467bd', '#1f77b4', '#e377c2']);
+
     // convert raw data into nodes data
     nodes = createNodes(rawData);
 
@@ -161,7 +184,7 @@ function bubbleChart() {
     var bubblesE = bubbles.enter().append('circle')
       .classed('bubble', true)
       .attr('r', 0)
-      .attr('fill', function (d) { return fillColor(d.group); })
+      .attr('fill', function (d) { return !d.revenue ? fillColor(d.group): "WHITE"; })
       .attr('stroke', function (d) { return d3.rgb(fillColor(d.group)).darker(); })
       .attr('stroke-width', 2)
       .on('mouseover', showDetail)
@@ -205,6 +228,10 @@ function bubbleChart() {
     return yearCenters[d.year].x;
   }
 
+  function nodeAreaPos(d) {
+    
+    return areaCenters[d.name]? areaCenters[d.name].x : 0;
+  }
 
   /*
    * Sets visualization in "single group mode".
@@ -239,6 +266,31 @@ function bubbleChart() {
     simulation.alpha(1).restart();
   }
 
+  function splitBubblesArea() {
+    var areaList = [...new Set(nodes.map(d => d.name))]
+    areasTitleX = {
+      BRC: 160,
+      PGR: width / 2,
+      ACHESON: width - 160
+    };
+    areasTitleX = areaList.reduce(function (acc, cur, i) {
+      acc[cur] = (i + 1) * width / (areaList.length + 1);
+      return acc;
+    }, {});
+    
+    showAreaTitles();
+
+    areaCenters = areaList.reduce(function (acc, cur, i) {
+      acc[cur] = { x: (i + 1) * width / (areaList.length + 1), y: height / 2 };
+      return acc;
+    }, {});
+    // @v4 Reset the 'x' force to draw the bubbles to their year centers
+    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeAreaPos));
+
+    // @v4 We can reset the alpha value and restart the simulation
+    simulation.alpha(1).restart();
+  }
+
   /*
    * Hides Year title displays.
    */
@@ -264,6 +316,23 @@ function bubbleChart() {
       .text(function (d) { return d; });
   }
 
+  /*
+   * Shows Area title displays.
+   */
+  function showAreaTitles() {
+    // Another way to do this would be to create
+    // the year texts once and then just hide them.
+    var areaData = d3.keys(areasTitleX);
+    var areas = svg.selectAll('.area')
+      .data(areaData);
+
+    areas.enter().append('text')
+      .attr('class', 'year')
+      .attr('x', function (d) { return areasTitleX[d]; })
+      .attr('y', 40)
+      .attr('text-anchor', 'middle')
+      .text(function (d) { return d; });
+  }
 
   /*
    * Function called on mouseover to display the
@@ -273,15 +342,15 @@ function bubbleChart() {
     // change outline to indicate hover state.
     d3.select(this).attr('stroke', 'black');
 
-    var content = '<span class="name">Title: </span><span class="value">' +
-                  d.name +
-                  '</span><br/>' +
-                  '<span class="name">Amount: </span><span class="value">$' +
-                  addCommas(d.value) +
-                  '</span><br/>' +
-                  '<span class="name">Year: </span><span class="value">' +
-                  d.year +
-                  '</span>';
+    var content = '<span class="name"></span><span class="value">' +
+      d.name +": "+d.group +
+      '</span><br/>' +
+      '<span class="name">Amount: </span><span class="value">$' +
+      addCommas( d.value) +
+      '</span><br/>' +
+      '<span class="name">Year: </span><span class="value">' +
+      d.year +
+      '</span>';
 
     tooltip.showTooltip(content, d3.event);
   }
@@ -292,7 +361,7 @@ function bubbleChart() {
   function hideDetail(d) {
     // reset outline
     d3.select(this)
-      .attr('stroke', d3.rgb(fillColor(d.group)).darker());
+      .attr('stroke', d3.rgb(fillColor(d.ACCOUNT_DESCRIPTION)).darker());
 
     tooltip.hideTooltip();
   }
@@ -305,8 +374,8 @@ function bubbleChart() {
    * displayName is expected to be a string and either 'year' or 'all'.
    */
   chart.toggleDisplay = function (displayName) {
-    if (displayName === 'year') {
-      splitBubbles();
+    if (displayName === 'area') {
+      splitBubblesArea();
     } else {
       groupBubbles();
     }
@@ -378,7 +447,56 @@ function addCommas(nStr) {
 }
 
 // Load the data.
-d3.csv('data/gates_money.csv', display);
+d3.csv('data/demurrage.csv', function (error1, data1) {
+  if (error1) {
+    console.log(error1);
+  }
+
+  d3.csv('data/freight.csv', function (error, data) {
+    if (error) {
+      console.log(error);
+    }
+    var allData = data.concat(data1);
+    myBubbleChart('#vis', allData);
+    legend();
+
+  });
+});
 
 // setup the buttons.
 setupButtons();
+
+function legend() {
+  var svg = d3.select("svg");
+
+  // Legend settings
+  var legendSize = 20; // Size of the legend item
+  var legendSpacing = 5; // Spacing between legend items
+
+  // Creating legend
+  var legend = svg.selectAll('.legend') // Selecting all elements with class 'legend'
+    .data(fillColor.domain()) // Binding data (ACCOUNT_DESCRIPTION values)
+    .enter()
+    .append('g') // Appending a group for each legend item
+    .attr('class', 'legend')
+    .attr('transform', function (d, i) {
+      var height = legendSize + legendSpacing;
+      var offset = height * fillColor.domain().length / 2;
+      var horz = 0; // Horizontal position
+      var vert = i * height + offset; // Vertical position
+      return 'translate(' + horz + ',' + vert + ')'; // Setting the position for each legend item
+    });
+
+  // Creating colored rectangles for the legend
+  legend.append('rect')
+    .attr('width', legendSize)
+    .attr('height', legendSize)
+    .style('fill', fillColor)
+    .style('stroke', fillColor);
+
+  // Adding text labels to the legend
+  legend.append('text')
+    .attr('x', legendSize + legendSpacing)
+    .attr('y', legendSize - legendSpacing)
+    .text(function (d) { return d; }); // Setting the text as the ACCOUNT_DESCRIPTION
+}
