@@ -13,6 +13,7 @@ function bubbleChart() {
   var width = 1240;
   var height = 600;
   var parseDate = d3.timeParse("%Y-%m-%d %H:%M:%S.%L");
+  var formatTime = d3.timeFormat("%b, %d %Y");
 
 
   // tooltip for mouseover functionality
@@ -132,7 +133,8 @@ function bubbleChart() {
         year: start_year,
         x: Math.random() * 900,
         y: Math.random() * 800,
-        revenue: +d.LI_AMT < 0
+        revenue: +d.LI_AMT < 0,
+        acct_per_date: parseDate(d.ACCT_PER_DATE)
       };
     });
 
@@ -343,13 +345,13 @@ function bubbleChart() {
     d3.select(this).attr('stroke', 'black');
 
     var content = '<span class="name"></span><span class="value">' +
-      d.name +": "+d.group +
+      d.name +","+d.org +": "+d.group +
       '</span><br/>' +
       '<span class="name">Amount: </span><span class="value">$' +
       addCommas( d.value) +
       '</span><br/>' +
-      '<span class="name">Year: </span><span class="value">' +
-      d.year +
+      '<span class="name">Period: </span><span class="value">' +
+      formatTime(d.acct_per_date )+
       '</span>';
 
     tooltip.showTooltip(content, d3.event);
