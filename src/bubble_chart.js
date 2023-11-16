@@ -28,12 +28,12 @@ function bubbleChart() {
     2009: { x: width / 2, y: height / 2 },
     2023: { x: 2 * width / 3, y: height / 2 }
   };
+  
+  var monthCenters;
+  var monthTitleX;
 
-  var areaCenters = {
-    BRC: { x: width / 3, y: height / 2 },
-    PGR: { x: width / 2, y: height / 2 },
-    ACHESON: { x: 2 * width / 3, y: height / 2 }
-  };
+  var areaCenters;
+  var areasTitleX;
 
   // X locations of the year titles.
   var yearsTitleX = {
@@ -42,11 +42,6 @@ function bubbleChart() {
     2023: width - 160
   };
 
-  var areasTitleX = {
-    BRC:160,
-    PGR: width / 2,
-    ACHESON: width - 160
-  };
 
   // @v4 strength to apply to the position forces
   var forceStrength = 0.03;
@@ -120,8 +115,8 @@ function bubbleChart() {
     // Checkout http://learnjsdata.com/ for more on
     // working with data.
     var myNodes = rawData.map(function (d) {
-      var start_year = parseDate(d.ACCT_PER_DATE);
-      start_year = start_year.getFullYear();
+      var date = parseDate(d.ACCT_PER_DATE);
+      start_year = date.getFullYear();
       var amount = +d.LI_AMT > 0 ? +d.LI_AMT : -d.LI_AMT; 
       return {
         id: d.id,
@@ -131,6 +126,7 @@ function bubbleChart() {
         org: d.FIELD,
         group: d.ACCOUNT_DESCRIPTION,
         year: start_year,
+        month: date.getMonth(),
         x: Math.random() * 900,
         y: Math.random() * 800,
         revenue: +d.LI_AMT < 0,
@@ -230,8 +226,11 @@ function bubbleChart() {
     return yearCenters[d.year].x;
   }
 
+  function nodeMonthPos(d) {
+    return monthCenters[d.month].x;
+  }
+
   function nodeAreaPos(d) {
-    
     return areaCenters[d.name]? areaCenters[d.name].x : 0;
   }
 
@@ -242,7 +241,6 @@ function bubbleChart() {
    * center of the visualization.
    */
   function groupBubbles() {
-    hideYearTitles();
 
     // @v4 Reset the 'x' force to draw the bubbles to the center.
     simulation.force('x', d3.forceX().strength(forceStrength).x(center.x));
@@ -262,7 +260,8 @@ function bubbleChart() {
     showYearTitles();
 
     // @v4 Reset the 'x' force to draw the bubbles to their year centers
-    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeYearPos));
+    //simulation.force('x', d3.forceX().strength(forceStrength).x(nodeYearPos));
+    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeMonthPos));
 
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
@@ -270,11 +269,7 @@ function bubbleChart() {
 
   function splitBubblesArea() {
     var areaList = [...new Set(nodes.map(d => d.name))]
-    areasTitleX = {
-      BRC: 160,
-      PGR: width / 2,
-      ACHESON: width - 160
-    };
+   
     areasTitleX = areaList.reduce(function (acc, cur, i) {
       acc[cur] = (i + 1) * width / (areaList.length + 1);
       return acc;
@@ -286,18 +281,40 @@ function bubbleChart() {
       acc[cur] = { x: (i + 1) * width / (areaList.length + 1), y: height / 2 };
       return acc;
     }, {});
-    // @v4 Reset the 'x' force to draw the bubbles to their year centers
+    // @v4 Reset the 'x' force to draw the bubbles to their area centers
     simulation.force('x', d3.forceX().strength(forceStrength).x(nodeAreaPos));
 
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
   }
+  function splitBubblesMonth() {
+    var monthList = [...new Set(nodes.map(d => d.month))]
+   
+    monthTitleX = monthList.reduce(function (acc, cur, i) {
+      acc[cur] = (i + 1) * width / (monthList.length + 1);
+      return acc;
+    }, {});
+    
+    showMonthTitles();
 
+    monthCenters = monthList.reduce(function (acc, cur, i) {
+      acc[cur] = { x: (i + 1) * width / (monthList.length + 1), y: height / 2 };
+      return acc;
+    }, {});
+    // @v4 Reset the 'x' force to draw the bubbles to their area centers
+    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeMonthPos));
+
+    // @v4 We can reset the alpha value and restart the simulation
+    simulation.alpha(1).restart();
+  }
   /*
    * Hides Year title displays.
    */
-  function hideYearTitles() {
+  function hideTitles() {
     svg.selectAll('.year').remove();
+    svg.selectAll('.month').remove();
+    svg.selectAll('.area').remove();
+
   }
 
   /*
@@ -317,19 +334,34 @@ function bubbleChart() {
       .attr('text-anchor', 'middle')
       .text(function (d) { return d; });
   }
+  /*
+   * Shows Month title displays.
+   */
+  function showMonthTitles() {
+  
+    var monthsData = d3.keys(monthTitleX);
+    var months = svg.selectAll('.month')
+      .data(monthsData);
+
+      months.enter().append('text')
+      .attr('class', 'month')
+      .attr('x', function (d) { return monthTitleX[d]; })
+      .attr('y', 40)
+      .attr('text-anchor', 'middle')
+      .text(function (d) { return d; });
+  }
 
   /*
    * Shows Area title displays.
    */
   function showAreaTitles() {
-    // Another way to do this would be to create
-    // the year texts once and then just hide them.
+  
     var areaData = d3.keys(areasTitleX);
     var areas = svg.selectAll('.area')
       .data(areaData);
 
     areas.enter().append('text')
-      .attr('class', 'year')
+      .attr('class', 'area')
       .attr('x', function (d) { return areasTitleX[d]; })
       .attr('y', 40)
       .attr('text-anchor', 'middle')
@@ -345,7 +377,10 @@ function bubbleChart() {
     d3.select(this).attr('stroke', 'black');
 
     var content = '<span class="name"></span><span class="value">' +
-      d.name +","+d.org +": "+d.group +
+      d.name +","+d.org +
+      '</span><br/>' +
+      '<span class="name">Desc: </span><span class="value">' +
+      d.group +
       '</span><br/>' +
       '<span class="name">Amount: </span><span class="value">$' +
       addCommas( d.value) +
@@ -371,14 +406,18 @@ function bubbleChart() {
   /*
    * Externally accessible function (this is attached to the
    * returned chart function). Allows the visualization to toggle
-   * between "single group" and "split by year" modes.
+   * between modes.
    *
-   * displayName is expected to be a string and either 'year' or 'all'.
+   * displayName is expected to be a string and either 'month', 'area', or 'all'.
    */
   chart.toggleDisplay = function (displayName) {
+    hideTitles();
+
     if (displayName === 'area') {
       splitBubblesArea();
-    } else {
+    } else if (displayName === 'month') {
+      splitBubblesMonth();
+    } else if (displayName === 'all') {
       groupBubbles();
     }
   };
@@ -472,7 +511,7 @@ function legend() {
   var svg = d3.select("svg");
 
   // Legend settings
-  var legendSize = 20; // Size of the legend item
+  var legendSize = 12; // Size of the legend item
   var legendSpacing = 5; // Spacing between legend items
 
   // Creating legend
@@ -484,17 +523,18 @@ function legend() {
     .attr('transform', function (d, i) {
       var height = legendSize + legendSpacing;
       var offset = height * fillColor.domain().length / 2;
-      var horz = 0; // Horizontal position
+      var horz = legendSize; // Horizontal position
       var vert = i * height + offset; // Vertical position
       return 'translate(' + horz + ',' + vert + ')'; // Setting the position for each legend item
     });
 
   // Creating colored rectangles for the legend
-  legend.append('rect')
-    .attr('width', legendSize)
-    .attr('height', legendSize)
-    .style('fill', fillColor)
-    .style('stroke', fillColor);
+  // Creating colored circles for the legend
+legend.append('circle')
+.attr('r', legendSize/2) // Setting the radius for the circle
+.style('fill', fillColor)
+.style('stroke', fillColor);
+
 
   // Adding text labels to the legend
   legend.append('text')
