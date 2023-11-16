@@ -22,26 +22,12 @@ function bubbleChart() {
   // Locations to move bubbles towards, depending
   // on which view mode is selected.
   var center = { x: width / 2, y: height / 2 };
-
-  var yearCenters = {
-    2008: { x: width / 3, y: height / 2 },
-    2009: { x: width / 2, y: height / 2 },
-    2023: { x: 2 * width / 3, y: height / 2 }
-  };
   
   var monthCenters;
   var monthTitleX;
 
   var areaCenters;
   var areasTitleX;
-
-  // X locations of the year titles.
-  var yearsTitleX = {
-    2008: 160,
-    2009: width / 2,
-    2023: width - 160
-  };
-
 
   // @v4 strength to apply to the position forces
   var forceStrength = 0.03;
@@ -83,9 +69,6 @@ function bubbleChart() {
   //  which we don't want as there aren't any nodes yet.
   simulation.stop();
 
-
-
-
   /*
    * This data manipulation function takes the raw data from
    * the CSV file and converts it into an array of node objects.
@@ -120,13 +103,14 @@ function bubbleChart() {
       var amount = +d.LI_AMT > 0 ? +d.LI_AMT : -d.LI_AMT; 
       return {
         id: d.id,
+        afe: d.AFE,
         radius: radiusScale(amount),
         value: amount,
         name: d.AREA,
         org: d.FIELD,
         group: d.ACCOUNT_DESCRIPTION,
         year: start_year,
-        month: date.getMonth(),
+        month: d3.timeFormat("%b")(date) ,
         x: Math.random() * 900,
         y: Math.random() * 800,
         revenue: +d.LI_AMT < 0,
@@ -222,9 +206,6 @@ function bubbleChart() {
    * Provides a x value for each node to be used with the split by year
    * x force.
    */
-  function nodeYearPos(d) {
-    return yearCenters[d.year].x;
-  }
 
   function nodeMonthPos(d) {
     return monthCenters[d.month].x;
@@ -234,34 +215,10 @@ function bubbleChart() {
     return areaCenters[d.name]? areaCenters[d.name].x : 0;
   }
 
-  /*
-   * Sets visualization in "single group mode".
-   * The year labels are hidden and the force layout
-   * tick function is set to move all nodes to the
-   * center of the visualization.
-   */
   function groupBubbles() {
 
     // @v4 Reset the 'x' force to draw the bubbles to the center.
     simulation.force('x', d3.forceX().strength(forceStrength).x(center.x));
-
-    // @v4 We can reset the alpha value and restart the simulation
-    simulation.alpha(1).restart();
-  }
-
-
-  /*
-   * Sets visualization in "split by year mode".
-   * The year labels are shown and the force layout
-   * tick function is set to move nodes to the
-   * yearCenter of their data's year.
-   */
-  function splitBubbles() {
-    showYearTitles();
-
-    // @v4 Reset the 'x' force to draw the bubbles to their year centers
-    //simulation.force('x', d3.forceX().strength(forceStrength).x(nodeYearPos));
-    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeMonthPos));
 
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
@@ -287,6 +244,7 @@ function bubbleChart() {
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
   }
+
   function splitBubblesMonth() {
     var monthList = [...new Set(nodes.map(d => d.month))]
    
@@ -307,33 +265,17 @@ function bubbleChart() {
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
   }
+ 
   /*
-   * Hides Year title displays.
+   * Hides  title displays.
    */
   function hideTitles() {
-    svg.selectAll('.year').remove();
     svg.selectAll('.month').remove();
     svg.selectAll('.area').remove();
 
   }
 
-  /*
-   * Shows Year title displays.
-   */
-  function showYearTitles() {
-    // Another way to do this would be to create
-    // the year texts once and then just hide them.
-    var yearsData = d3.keys(yearsTitleX);
-    var years = svg.selectAll('.year')
-      .data(yearsData);
-
-    years.enter().append('text')
-      .attr('class', 'year')
-      .attr('x', function (d) { return yearsTitleX[d]; })
-      .attr('y', 40)
-      .attr('text-anchor', 'middle')
-      .text(function (d) { return d; });
-  }
+  
   /*
    * Shows Month title displays.
    */
@@ -377,7 +319,7 @@ function bubbleChart() {
     d3.select(this).attr('stroke', 'black');
 
     var content = '<span class="name"></span><span class="value">' +
-      d.name +","+d.org +
+      d.afe+" "+d.name +","+d.org +
       '</span><br/>' +
       '<span class="name">Desc: </span><span class="value">' +
       d.group +
@@ -488,16 +430,19 @@ function addCommas(nStr) {
 }
 
 // Load the data.
-d3.csv('data/demurrage.csv', function (error1, data1) {
+d3.csv('data/lastyeardem.csv', function (error1, data1) {
   if (error1) {
     console.log(error1);
   }
 
-  d3.csv('data/freight.csv', function (error, data) {
+  d3.csv('data/railrows.csv', function (error, data) {
     if (error) {
       console.log(error);
     }
     var allData = data.concat(data1);
+    allData = allData.filter(d => d.ACCT_PER_DATE > "2023-09" );
+  //  allData = allData.filter(d=> !d.AREA.includes("DS MARKETING"));
+    allData = allData.filter(d=> d.VOUCHER_TYPE_CODE == "ACCR");
     myBubbleChart('#vis', allData);
     legend();
 
