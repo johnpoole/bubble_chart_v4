@@ -22,7 +22,7 @@ function bubbleChart() {
   // Locations to move bubbles towards, depending
   // on which view mode is selected.
   var center = { x: width / 2, y: height / 2 };
-  
+
   var monthCenters;
   var monthTitleX;
 
@@ -100,7 +100,7 @@ function bubbleChart() {
     var myNodes = rawData.map(function (d) {
       var date = parseDate(d.ACCT_PER_DATE);
       start_year = date.getFullYear();
-      var amount = +d.LI_AMT > 0 ? +d.LI_AMT : -d.LI_AMT; 
+      var amount = +d.LI_AMT > 0 ? +d.LI_AMT : -d.LI_AMT;
       return {
         id: d.id,
         afe: d.AFE,
@@ -110,7 +110,7 @@ function bubbleChart() {
         org: d.FIELD,
         group: d.ACCOUNT_DESCRIPTION,
         year: start_year,
-        month: d3.timeFormat("%b")(date) ,
+        month: d3.timeFormat("%b")(date),
         x: Math.random() * 900,
         y: Math.random() * 800,
         revenue: +d.LI_AMT < 0,
@@ -141,8 +141,8 @@ function bubbleChart() {
     // Nice looking colors - no reason to buck the trend
     // @v4 scales now have a flattened naming scheme
     fillColor = d3.scaleOrdinal()
-    .domain([...new Set(rawData.map(d => d.ACCOUNT_DESCRIPTION))])
-    .range(['#d62728', '#ff7f0e', '#2ca02c', '#9467bd', '#1f77b4', '#e377c2']);
+      .domain([...new Set(rawData.map(d => d.ACCOUNT_DESCRIPTION))])
+      .range(['#d62728', '#ff7f0e', '#2ca02c', '#9467bd', '#1f77b4', '#e377c2']);
 
     // convert raw data into nodes data
     nodes = createNodes(rawData);
@@ -166,7 +166,7 @@ function bubbleChart() {
     var bubblesE = bubbles.enter().append('circle')
       .classed('bubble', true)
       .attr('r', 0)
-      .attr('fill', function (d) { return !d.revenue ? fillColor(d.group): "WHITE"; })
+      .attr('fill', function (d) { return !d.revenue ? fillColor(d.group) : "WHITE"; })
       .attr('stroke', function (d) { return d3.rgb(fillColor(d.group)).darker(); })
       .attr('stroke-width', 2)
       .on('mouseover', showDetail)
@@ -212,7 +212,7 @@ function bubbleChart() {
   }
 
   function nodeAreaPos(d) {
-    return areaCenters[d.name]? areaCenters[d.name].x : 0;
+    return areaCenters[d.name] ? areaCenters[d.name].x : 0;
   }
 
   function groupBubbles() {
@@ -226,12 +226,12 @@ function bubbleChart() {
 
   function splitBubblesArea() {
     var areaList = [...new Set(nodes.map(d => d.name))]
-   
+
     areasTitleX = areaList.reduce(function (acc, cur, i) {
       acc[cur] = (i + 1) * width / (areaList.length + 1);
       return acc;
     }, {});
-    
+
     showAreaTitles();
 
     areaCenters = areaList.reduce(function (acc, cur, i) {
@@ -247,25 +247,31 @@ function bubbleChart() {
 
   function splitBubblesMonth() {
     var monthList = [...new Set(nodes.map(d => d.month))]
-   
+
+    //sort monthList
+    monthList.sort(function (a, b) {
+      return d3.timeParse("%b")(a) - d3.timeParse("%b")(b);
+    });
+
     monthTitleX = monthList.reduce(function (acc, cur, i) {
       acc[cur] = (i + 1) * width / (monthList.length + 1);
       return acc;
     }, {});
-    
+
     showMonthTitles();
 
     monthCenters = monthList.reduce(function (acc, cur, i) {
       acc[cur] = { x: (i + 1) * width / (monthList.length + 1), y: height / 2 };
       return acc;
     }, {});
+
     // @v4 Reset the 'x' force to draw the bubbles to their area centers
     simulation.force('x', d3.forceX().strength(forceStrength).x(nodeMonthPos));
 
     // @v4 We can reset the alpha value and restart the simulation
     simulation.alpha(1).restart();
   }
- 
+
   /*
    * Hides  title displays.
    */
@@ -275,17 +281,17 @@ function bubbleChart() {
 
   }
 
-  
+
   /*
    * Shows Month title displays.
    */
   function showMonthTitles() {
-  
+
     var monthsData = d3.keys(monthTitleX);
     var months = svg.selectAll('.month')
       .data(monthsData);
 
-      months.enter().append('text')
+    months.enter().append('text')
       .attr('class', 'month')
       .attr('x', function (d) { return monthTitleX[d]; })
       .attr('y', 40)
@@ -297,7 +303,7 @@ function bubbleChart() {
    * Shows Area title displays.
    */
   function showAreaTitles() {
-  
+
     var areaData = d3.keys(areasTitleX);
     var areas = svg.selectAll('.area')
       .data(areaData);
@@ -319,16 +325,16 @@ function bubbleChart() {
     d3.select(this).attr('stroke', 'black');
 
     var content = '<span class="name"></span><span class="value">' +
-      d.afe+" "+d.name +","+d.org +
+      d.afe + " " + d.name + "," + d.org +
       '</span><br/>' +
       '<span class="name">Desc: </span><span class="value">' +
       d.group +
       '</span><br/>' +
       '<span class="name">Amount: </span><span class="value">$' +
-      addCommas( d.value) +
+      addCommas(d.value) +
       '</span><br/>' +
       '<span class="name">Period: </span><span class="value">' +
-      formatTime(d.acct_per_date )+
+      formatTime(d.acct_per_date) +
       '</span>';
 
     tooltip.showTooltip(content, d3.event);
@@ -440,12 +446,13 @@ d3.csv('data/lastyeardem.csv', function (error1, data1) {
       console.log(error);
     }
     var allData = data.concat(data1);
-    allData = allData.filter(d => d.ACCT_PER_DATE > "2023-09" );
-  //  allData = allData.filter(d=> !d.AREA.includes("DS MARKETING"));
-    allData = allData.filter(d=> d.VOUCHER_TYPE_CODE == "ACCR");
+    allData = allData.filter(d => d.ACCT_PER_DATE > "2023-06");
+    //  allData = allData.filter(d=> !d.AREA.includes("DS MARKETING"));
+    allData = allData.filter(d => d.VOUCHER_TYPE_CODE == "ACCR");
+    allData = allData.filter(d => +d.LI_AMT > 0);
     myBubbleChart('#vis', allData);
     legend();
-
+    createTable(allData);
   });
 });
 
@@ -454,7 +461,7 @@ setupButtons();
 
 function legend() {
   var svg = d3.select("svg");
-
+  var width = +svg.attr("width");
   // Legend settings
   var legendSize = 12; // Size of the legend item
   var legendSpacing = 5; // Spacing between legend items
@@ -468,17 +475,17 @@ function legend() {
     .attr('transform', function (d, i) {
       var height = legendSize + legendSpacing;
       var offset = height * fillColor.domain().length / 2;
-      var horz = legendSize; // Horizontal position
-      var vert = i * height + offset; // Vertical position
+      var horz = width - 200; // Horizontal position
+      var vert = (i + 2) * height + offset; // Vertical position
       return 'translate(' + horz + ',' + vert + ')'; // Setting the position for each legend item
     });
 
-  // Creating colored rectangles for the legend
-  // Creating colored circles for the legend
-legend.append('circle')
-.attr('r', legendSize/2) // Setting the radius for the circle
-.style('fill', fillColor)
-.style('stroke', fillColor);
+
+    // Creating colored circles for the legend
+  legend.append('circle')
+    .attr('r', legendSize / 2) // Setting the radius for the circle
+    .style('fill', fillColor)
+    .style('stroke', fillColor);
 
 
   // Adding text labels to the legend
@@ -487,3 +494,31 @@ legend.append('circle')
     .attr('y', legendSize - legendSpacing)
     .text(function (d) { return d; }); // Setting the text as the ACCOUNT_DESCRIPTION
 }
+
+function createTable(data) {
+  // Select the HTML element where the table will be appended
+  var tableDiv = d3.select('#expenseTable'); // Replace '#tableDiv' with the ID of your div
+
+  // Create a table and append it to the div
+  var table = tableDiv.append('table').attr('class', 'my-table'); // Add class for styling
+
+  // Create the header row
+  var headers = Object.keys(data[0]);
+  table.append('thead').append('tr')
+    .selectAll('th')
+    .data(headers).enter()
+    .append('th')
+    .text(function (d) { return d; });
+
+  // Create the table body
+  var tbody = table.append('tbody');
+
+  // Add rows to the table body
+  data.forEach(function (d) {
+    var row = tbody.append('tr');
+    headers.forEach(function (header) {
+      row.append('td').text(d[header]);
+    });
+  });
+}
+
