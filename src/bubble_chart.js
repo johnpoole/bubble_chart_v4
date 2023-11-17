@@ -296,25 +296,54 @@ function bubbleChart() {
       .attr('x', function (d) { return monthTitleX[d]; })
       .attr('y', 40)
       .attr('text-anchor', 'middle')
-      .text(function (d) { return d; });
+      .each(function(d) {
+
+      var total = d3.sum(nodes.filter(function (d1) { return d1.month == d; }), function (d) { return d.value; });
+        
+        var text = d3.select(this);
+        text.append('tspan')
+          .attr('x', areasTitleX[d])
+          .attr('dy', '-0.3em') // Adjust vertical position of the first line
+          .text(d);
+
+        text.append('tspan')
+          .attr('x', areasTitleX[d])
+          .attr('dy', '1.2em') // Adjust vertical position of the second line
+          .text("$" + addCommas(total));
+      });
   }
 
   /*
    * Shows Area title displays.
    */
   function showAreaTitles() {
-
     var areaData = d3.keys(areasTitleX);
     var areas = svg.selectAll('.area')
       .data(areaData);
 
     areas.enter().append('text')
       .attr('class', 'area')
-      .attr('x', function (d) { return areasTitleX[d]; })
+      .attr('x', function (d) {
+        return areasTitleX[d]; 
+      })
       .attr('y', 40)
       .attr('text-anchor', 'middle')
-      .text(function (d) { return d; });
-  }
+      .each(function(d) {
+        var total = d3.sum(nodes.filter(function (d1) { return d1.name == d; }), function (d) { return d.value; });
+        
+        var text = d3.select(this);
+        text.append('tspan')
+          .attr('x', areasTitleX[d])
+          .attr('dy', '-0.3em') // Adjust vertical position of the first line
+          .text(d);
+
+        text.append('tspan')
+          .attr('x', areasTitleX[d])
+          .attr('dy', '1.2em') // Adjust vertical position of the second line
+          .text("$" + addCommas(total));
+      });
+}
+
 
   /*
    * Function called on mouseover to display the
@@ -325,7 +354,7 @@ function bubbleChart() {
     d3.select(this).attr('stroke', 'black');
 
     var content = '<span class="name"></span><span class="value">' +
-      d.afe + " " + d.name + "," + d.org +
+      d.name + "," + d.org +
       '</span><br/>' +
       '<span class="name">Desc: </span><span class="value">' +
       d.group +
@@ -431,7 +460,7 @@ function addCommas(nStr) {
   while (rgx.test(x1)) {
     x1 = x1.replace(rgx, '$1' + ',' + '$2');
   }
-
+  x2 = x2.length > 3 ? x2.substring(0, 3) : x2;
   return x1 + x2;
 }
 
