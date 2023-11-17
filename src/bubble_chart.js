@@ -29,6 +29,9 @@ function bubbleChart() {
   var areaCenters;
   var areasTitleX;
 
+  var accountCenters;
+  var accountsTitleX;
+
   // @v4 strength to apply to the position forces
   var forceStrength = 0.03;
 
@@ -215,6 +218,10 @@ function bubbleChart() {
     return areaCenters[d.name] ? areaCenters[d.name].x : 0;
   }
 
+  function nodeAccountPos(d) {
+    return accountCenters[d.group].x;
+  }
+  
   function groupBubbles() {
 
     // @v4 Reset the 'x' force to draw the bubbles to the center.
@@ -272,12 +279,39 @@ function bubbleChart() {
     simulation.alpha(1).restart();
   }
 
+  function splitBubblesAccount() {
+    var accountList = [...new Set(nodes.map(d => d.group))]
+
+    //sort monthList
+    accountList.sort(function (a, b) {
+      return a - b;
+    });
+
+    accountsTitleX = accountList.reduce(function (acc, cur, i) {
+      acc[cur] = (i + 1) * width / (accountList.length + 1);
+      return acc;
+    }, {});
+
+    showAccountTitles();
+
+    accountCenters = accountList.reduce(function (acc, cur, i) {
+      acc[cur] = { x: (i + 1) * width / (accountList.length + 1), y: height / 2 };
+      return acc;
+    }, {});
+
+    // @v4 Reset the 'x' force to draw the bubbles to their area centers
+    simulation.force('x', d3.forceX().strength(forceStrength).x(nodeAccountPos));
+
+    // @v4 We can reset the alpha value and restart the simulation
+    simulation.alpha(1).restart();
+  }
   /*
    * Hides  title displays.
    */
   function hideTitles() {
     svg.selectAll('.month').remove();
     svg.selectAll('.area').remove();
+    svg.selectAll('.account').remove();
 
   }
 
@@ -343,8 +377,33 @@ function bubbleChart() {
           .text("$" + addCommas(total));
       });
 }
+ function showAccountTitles() {
+    var accountData = d3.keys(accountsTitleX);
+    var accounts = svg.selectAll('.account')
+      .data(accountData);
 
+    accounts.enter().append('text')
+      .attr('class', 'account')
+      .attr('x', function (d) {
+        return accountsTitleX[d]; 
+      })
+      .attr('y', 40)
+      .attr('text-anchor', 'middle')
+      .each(function(d) {
+        var total = d3.sum(nodes.filter(function (d1) { return d1.group == d; }), function (d) { return d.value; });
+        
+        var text = d3.select(this);
+        text.append('tspan')
+          .attr('x', accountsTitleX[d])
+          .attr('dy', '-0.3em') // Adjust vertical position of the first line
+          .text(d);
 
+        text.append('tspan')
+          .attr('x', accountsTitleX[d])
+          .attr('dy', '1.2em') // Adjust vertical position of the second line
+          .text("$" + addCommas(total));
+      });
+    }
   /*
    * Function called on mouseover to display the
    * details of a bubble in the tooltip.
@@ -394,7 +453,10 @@ function bubbleChart() {
       splitBubblesArea();
     } else if (displayName === 'month') {
       splitBubblesMonth();
-    } else if (displayName === 'all') {
+    } else if (displayName === 'account') {
+      splitBubblesAccount();
+    }
+     else if (displayName === 'all') {
       groupBubbles();
     }
   };
