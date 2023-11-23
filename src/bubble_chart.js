@@ -10,8 +10,11 @@ var fillColor;
 
 function bubbleChart() {
   // Constants for sizing
-  var width = 1240;
-  var height = 600;
+  var visDiv = document.getElementById('vis');
+  var visWidth = visDiv.clientWidth;
+
+  // Use the queried width for the chart
+  var width = visWidth;  var height = 600;
   var parseDate = d3.timeParse("%Y-%m-%d %H:%M:%S.%L");
   var formatTime = d3.timeFormat("%b, %d %Y");
 
@@ -242,7 +245,7 @@ function bubbleChart() {
     showAreaTitles();
 
     areaCenters = areaList.reduce(function (acc, cur, i) {
-      acc[cur] = { x: (i + 1) * width / (areaList.length + 1), y: height / 2 };
+      acc[cur] = { x: (i + 2) * width / (areaList.length + 2), y: height / 2 };
       return acc;
     }, {});
     // @v4 Reset the 'x' force to draw the bubbles to their area centers
@@ -268,7 +271,7 @@ function bubbleChart() {
     showMonthTitles();
 
     monthCenters = monthList.reduce(function (acc, cur, i) {
-      acc[cur] = { x: (i + 1) * width / (monthList.length + 1), y: height / 2 };
+      acc[cur] = { x: (i + 2) * width / (monthList.length + 2), y: height / 2 };
       return acc;
     }, {});
 
@@ -295,7 +298,7 @@ function bubbleChart() {
     showAccountTitles();
 
     accountCenters = accountList.reduce(function (acc, cur, i) {
-      acc[cur] = { x: (i + 1) * width / (accountList.length + 1), y: height / 2 };
+      acc[cur] = { x: (i + 2) * width / (accountList.length + 2), y: height / 2 };
       return acc;
     }, {});
 
@@ -527,25 +530,21 @@ function addCommas(nStr) {
 }
 
 // Load the data.
-d3.csv('data/lastyeardem.csv', function (error1, data1) {
-  if (error1) {
-    console.log(error1);
-  }
+d3.csv('data/raildem.csv', function (error, data) {
 
-  d3.csv('data/railrows.csv', function (error, data) {
     if (error) {
       console.log(error);
     }
-    var allData = data.concat(data1);
-    allData = allData.filter(d => d.ACCT_PER_DATE > "2023-06");
+    var allData = data;
+    //allData = allData.filter(d => d.ACCT_PER_DATE > "2023-06");
     //  allData = allData.filter(d=> !d.AREA.includes("DS MARKETING"));
-    allData = allData.filter(d => d.VOUCHER_TYPE_CODE == "ACCR");
+   // allData = allData.filter(d => d.VOUCHER_TYPE_CODE == "ACCR");
     allData = allData.filter(d => +d.LI_AMT > 0);
     myBubbleChart('#vis', allData);
     legend();
     createTable(allData);
   });
-});
+
 
 // setup the buttons.
 setupButtons();
